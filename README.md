@@ -36,4 +36,7 @@ Topics covered:
 * Convolutions and Pooling
 * Advanced NN Functions
 
+![Module0 Manual Update](Images/img.png)
+![Tree Modules](Images/TreeModules.png)
+
 
