@@ -27,7 +27,7 @@ def add(x, y):
 
 def neg(x):
     ":math:`f(x) = -x`"
-    return -x
+    return -1.0 * x
 
 
 def lt(x, y):
