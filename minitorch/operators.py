@@ -204,6 +204,7 @@ def reduce(fn, start):
         :math:`x_1 \ldots x_n` and computes the reduction :math:`fn(x_3, fn(x_2,
         fn(x_1, x_0)))`
     """
+
     def reduceCombine(ls):
         res = start
         for element in ls:

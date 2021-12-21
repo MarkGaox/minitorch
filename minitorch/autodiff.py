@@ -190,8 +190,7 @@ class History:
         Returns:
             list of numbers : a derivative with respect to `inputs`
         """
-        # TODO: Implement for Task 1.4.
-        raise NotImplementedError("Need to implement for Task 1.4")
+        return self.last_fn.chain_rule(self.ctx, self.inputs, d_output)
 
 
 class FunctionBase:
@@ -274,6 +273,8 @@ class FunctionBase:
         # Tip: Note when implementing this function that
         # cls.backward may return either a value or a tuple.
         derivatives = cls.backward(ctx, d_output)
+        if type(derivatives) is not tuple:
+            derivatives = (derivatives,)
         index = 0
         res = []
         for variable in inputs:
@@ -290,19 +291,33 @@ def is_constant(val):
     return not isinstance(val, Variable) or val.history is None
 
 
-def topological_sort(variable):
+def topological_sort(variable, deriv):
     """
     Computes the topological order of the computation graph.
 
     Args:
         variable (:class:`Variable`): The right-most variable
+        deriv (number): The derivative of the current variable
 
     Returns:
         list of Variables : Non-constant Variables in topological order
                             starting from the right.
     """
-    # TODO: Implement for Task 1.4.
-    raise NotImplementedError("Need to implement for Task 1.4")
+    visited = {}
+    result = []
+
+    def dfs(variable, deriv):
+        if variable.unique_id in visited:
+            return
+        if not variable.is_leaf():
+            prev_variables = variable.history.backprop_step(deriv)
+            for var, value in prev_variables:
+                dfs(var, value)
+        visited[variable.unique_id] = True
+        result.append(variable)
+
+    dfs(variable, deriv)
+    return result
 
 
 def backpropagate(variable, deriv):
@@ -318,5 +333,16 @@ def backpropagate(variable, deriv):
 
     No return. Should write to its results to the derivative values of each leaf through `accumulate_derivative`.
     """
-    # TODO: Implement for Task 1.4.
-    raise NotImplementedError("Need to implement for Task 1.4")
+    order = topological_sort(variable, deriv)
+    mapping = {variable.unique_id: deriv}
+    order.reverse()
+    for node in order:
+        if node.is_leaf():
+            node.accumulate_derivative(mapping[node.unique_id])
+        else:
+            list_variable = node.history.backprop_step(mapping[node.unique_id])
+            for var, value in list_variable:
+                if var.unique_id in mapping:
+                    mapping[var.unique_id] += value
+                else:
+                    mapping[var.unique_id] = value

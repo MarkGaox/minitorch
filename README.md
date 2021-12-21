@@ -36,7 +36,13 @@ Topics covered:
 * Convolutions and Pooling
 * Advanced NN Functions
 
+## Example of Module Code
 ![Module0 Manual Update](images/img.png)
 ![Tree Modules](images/TreeModules.png)
+
+## Xor Data Classification
+This example shows how to use neural network with 10 hidden layers to approximate the Xor data.
+![Xor Classification](images/xor_with_nn.png)
+![Xor Loss](images/xor-loss-graph.png)
 
 
