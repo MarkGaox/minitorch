@@ -291,13 +291,12 @@ def is_constant(val):
     return not isinstance(val, Variable) or val.history is None
 
 
-def topological_sort(variable, deriv):
+def topological_sort(variable):
     """
     Computes the topological order of the computation graph.
 
     Args:
         variable (:class:`Variable`): The right-most variable
-        deriv (number): The derivative of the current variable
 
     Returns:
         list of Variables : Non-constant Variables in topological order
@@ -306,17 +305,18 @@ def topological_sort(variable, deriv):
     visited = {}
     result = []
 
-    def dfs(variable, deriv):
+    def dfs(variable):
         if variable.unique_id in visited:
             return
         if not variable.is_leaf():
-            prev_variables = variable.history.backprop_step(deriv)
-            for var, value in prev_variables:
-                dfs(var, value)
+            prev_variables = variable.history.inputs
+            for var in prev_variables:
+                if not is_constant(var):
+                    dfs(var)
         visited[variable.unique_id] = True
         result.append(variable)
 
-    dfs(variable, deriv)
+    dfs(variable)
     return result
 
 
@@ -333,7 +333,7 @@ def backpropagate(variable, deriv):
 
     No return. Should write to its results to the derivative values of each leaf through `accumulate_derivative`.
     """
-    order = topological_sort(variable, deriv)
+    order = topological_sort(variable)
     mapping = {variable.unique_id: deriv}
     order.reverse()
     for node in order:
