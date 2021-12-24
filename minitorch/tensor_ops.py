@@ -39,8 +39,39 @@ def tensor_map(fn):
     """
 
     def _map(out, out_shape, out_strides, in_storage, in_shape, in_strides):
-        # TODO: Implement for Task 2.2.
-        raise NotImplementedError("Need to implement for Task 2.2")
+        length = len(out_shape)
+
+        def recursive_set(cur_out_index, shape_index):
+            """
+            Recursively treaverse the `out_storage`. For each cell, find
+            its corresponding value inside the `in_storage`, map it, and
+            set the value in `out_storage`.
+
+            Args:
+                cur_out_index (array): current index of `out_storage`
+                shape_index (int): the index of `out_shape` we are at
+
+            Returns:
+                None: Fills in 'out'
+            """
+            if shape_index >= length:
+                return
+            for i in range(out_shape[shape_index]):
+                cur_out_index[shape_index] = i
+
+                # Find the index for input tensor that has shape of in_shape
+                cur_in_index = [0] * length
+                broadcast_index(cur_out_index, out_shape, in_shape, cur_in_index)
+                cur_in_index = [i for i in cur_in_index if i != -1]
+
+                # Find input and output storage position, then set the value of output storage
+                in_storage_position = index_to_position(cur_in_index, in_strides)
+                out_storage_position = index_to_position(cur_out_index, out_strides)
+                out[out_storage_position] = fn(in_storage[in_storage_position])
+
+                recursive_set(cur_out_index.copy(), shape_index + 1)
+
+        recursive_set([0] * length, 0)
 
     return _map
 
@@ -130,8 +161,45 @@ def tensor_zip(fn):
         b_shape,
         b_strides,
     ):
-        # TODO: Implement for Task 2.2.
-        raise NotImplementedError("Need to implement for Task 2.2")
+        length = len(out_shape)
+
+        def recursive_set(cur_out_index, shape_index):
+            """
+            Recursively treaverse the `out_storage`. For each cell, find
+            its corresponding value inside the `a_storage` and `b_storage`,
+            zip them, and set the result value in `out_storage`.
+
+            Args:
+                cur_out_index (array): current index of `out_storage`
+                shape_index (int): the index of `out_shape` we are at
+
+            Returns:
+                None: Fills in 'out'
+            """
+            if shape_index >= length:
+                return
+            for i in range(out_shape[shape_index]):
+                cur_out_index[shape_index] = i
+
+                # Find the index for input tensor `a` that has shape of a_shape
+                cur_a_index = [0] * length
+                broadcast_index(cur_out_index, out_shape, a_shape, cur_a_index)
+                cur_a_index = [i for i in cur_a_index if i != -1]
+
+                # Find the index for input tensor `b` that has shape of b_shape
+                cur_b_index = [0] * length
+                broadcast_index(cur_out_index, out_shape, b_shape, cur_b_index)
+                cur_b_index = [i for i in cur_b_index if i != -1]
+
+                # Find a, b and output storage position, then set the value of output storage
+                a_storage_position = index_to_position(cur_a_index, a_strides)
+                b_storage_position = index_to_position(cur_b_index, b_strides)
+                out_storage_position = index_to_position(cur_out_index, out_strides)
+                out[out_storage_position] = fn(a_storage[a_storage_position], b_storage[b_storage_position])
+
+                recursive_set(cur_out_index.copy(), shape_index + 1)
+
+        recursive_set([0] * length, 0)
 
     return _zip
 
@@ -201,8 +269,46 @@ def tensor_reduce(fn):
     """
 
     def _reduce(out, out_shape, out_strides, a_storage, a_shape, a_strides, reduce_dim):
-        # TODO: Implement for Task 2.2.
-        raise NotImplementedError("Need to implement for Task 2.2")
+        length = len(a_shape)
+
+        def recursive_set(cur_a_index, shape_index):
+            """
+            Recursively treaverse the `a_storage`. Reduce the dimensionaility of `a_storage`
+            by applying the reduce function, and set the value in `out_storage`.
+
+            Args:
+                cur_a_index (array): current index of `a_storage`
+                shape_index (int): the index of `a_shape` we are at
+
+            Returns:
+                None: Fills in 'out'
+            """
+            if shape_index >= length:
+                return
+            if shape_index == 0:
+                for_length = range(a_shape[shape_index])
+            else:
+                for_length = range(1, a_shape[shape_index])
+            for i in for_length:
+                cur_a_index[shape_index] = i
+
+                # Find the storage position index for tensor 'a'
+                a_storage_position = index_to_position(cur_a_index, a_strides)
+
+                if cur_a_index[reduce_dim] == 0:
+                    # If index of reduced dimension is 0, directly assign value to the `out` storage
+                    out_storage_position = index_to_position(cur_a_index, out_strides)
+                    out[out_storage_position] = a_storage[a_storage_position]
+                else:
+                    # Otherwise, apply `fn` to reduce the dimension
+                    cur_out_index = cur_a_index.copy()
+                    cur_out_index[reduce_dim] = 0
+                    out_storage_position = index_to_position(cur_out_index, out_strides)
+                    out[out_storage_position] = fn(out[out_storage_position], a_storage[a_storage_position])
+
+                recursive_set(cur_a_index.copy(), shape_index + 1)
+
+        recursive_set([0] * length, 0)
 
     return _reduce
 
