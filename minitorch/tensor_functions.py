@@ -9,7 +9,6 @@ import numpy as np
 from . import operators
 from .tensor import Tensor
 import random
-import minitorch
 
 
 # Constructors
@@ -69,11 +68,13 @@ def make_tensor_backend(tensor_ops, is_cuda=False):
         class Neg(Function):
             @staticmethod
             def forward(ctx, t1):
+                ctx.save_for_backward(t1)
                 return neg_map(t1)
 
             @staticmethod
             def backward(ctx, grad_output):
-                return neg_map(grad_output)
+                t1 = ctx.saved_values
+                return t1.expand(neg_map(grad_output))
 
         class Inv(Function):
             @staticmethod
@@ -89,20 +90,27 @@ def make_tensor_backend(tensor_ops, is_cuda=False):
         class Add(Function):
             @staticmethod
             def forward(ctx, t1, t2):
+                ctx.save_for_backward(t1, t2)
                 return add_zip(t1, t2)
 
             @staticmethod
             def backward(ctx, grad_output):
-                return grad_output, grad_output
+                t1, t2 = ctx.saved_values
+                return t1.expand(grad_output), t2.expand(grad_output)
 
         class Mul(Function):
             @staticmethod
             def forward(ctx, a, b):
+                ctx.save_for_backward(a, b)
                 return mul_zip(a, b)
 
             @staticmethod
             def backward(ctx, grad_output):
-                return grad_output
+                a, b = ctx.saved_values
+                return (
+                    a.expand(mul_zip(b, grad_output)),
+                    b.expand(mul_zip(a, grad_output)),
+                )
 
         class Sigmoid(Function):
             @staticmethod
@@ -113,7 +121,10 @@ def make_tensor_backend(tensor_ops, is_cuda=False):
             @staticmethod
             def backward(ctx, grad_output):
                 a = ctx.saved_values
-                return mul_zip(mul_zip(sigmoid_map(a), add_zip(neg_map(sigmoid_map(a)), minitorch.tensor([1]))), grad_output)
+                b = sigmoid_map(a)
+                return a.expand(
+                    mul_zip(add_zip(b, mul_zip(b, neg_map(b))), grad_output)
+                )
 
         class ReLU(Function):
             @staticmethod
@@ -146,7 +157,7 @@ def make_tensor_backend(tensor_ops, is_cuda=False):
             @staticmethod
             def backward(ctx, grad_output):
                 a = ctx.saved_values
-                return mul_zip(grad_output, a)
+                return mul_zip(exp_map(a), grad_output)
 
         class Sum(Function):
             @staticmethod
@@ -182,20 +193,24 @@ def make_tensor_backend(tensor_ops, is_cuda=False):
         class LT(Function):
             @staticmethod
             def forward(ctx, a, b):
+                ctx.save_for_backward(a, b)
                 return lt_zip(a, b)
 
             @staticmethod
             def backward(ctx, grad_output):
-                return minitorch.tensor([0.]), minitorch.tensor([0.])
+                a, b = ctx.saved_values
+                return grad_output.zeros(a.shape), grad_output.zeros(b.shape)
 
         class EQ(Function):
             @staticmethod
             def forward(ctx, a, b):
+                ctx.save_for_backward(a, b)
                 return eq_zip(a, b)
 
             @staticmethod
             def backward(ctx, grad_output):
-                return minitorch.tensor([0.]), minitorch.tensor([0.])
+                a, b = ctx.saved_values
+                return grad_output.zeros(a.shape), grad_output.zeros(b.shape)
 
         class IsClose(Function):
             @staticmethod
@@ -205,12 +220,19 @@ def make_tensor_backend(tensor_ops, is_cuda=False):
         class Permute(Function):
             @staticmethod
             def forward(ctx, a, order):
-                return a.permute(order)
+                order_back = [0] * len(order)
+                for i, v in enumerate(order):
+                    order_back[v] = i
+                ctx.save_for_backward(order_back)
+                b = Tensor.make(a._tensor._storage, a.shape, backend=a.backend)
+                return Tensor(b._tensor.permute(*order), backend=b.backend)
 
             @staticmethod
             def backward(ctx, grad_output):
-                # TODO: Implement for Task 2.4.
-                raise NotImplementedError("Need to implement for Task 2.4")
+                order = ctx.saved_values
+                return Tensor(
+                    grad_output._tensor.permute(*order), backend=grad_output.backend
+                )
 
         class View(Function):
             @staticmethod

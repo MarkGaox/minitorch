@@ -23,10 +23,9 @@ def index_to_position(index, strides):
     Returns:
         int : position in storage
     """
-    assert len(index) == len(strides)
     res = 0
-    for i in range(len(index)):
-        res += index[i] * strides[i]
+    for idx, stride in zip(index, strides):
+        res += idx * stride
     return res
 
 
@@ -69,23 +68,9 @@ def broadcast_index(big_index, big_shape, shape, out_index):
     Returns:
         None : Fills in `out_index`.
     """
-    padded_shape = list(shape)
-    # Pad non-match dimensions
-    if len(big_shape) > len(shape):
-        diff = len(big_shape) - len(shape)
-        padded_shape = [0] * diff + padded_shape
-    for i in range(len(padded_shape)):
-        if padded_shape[i] != 0:
-            if big_shape[i] == padded_shape[i]:
-                # case where shape doesn't need broadcast
-                out_index[i] = big_index[i]
-            else:
-                # case where shape needs broadcast
-                out_index[i] = min(big_index[i], padded_shape[i] - 1)
-        else:
-            # Any additional dimension needs to be mapped to -1.
-            # This dimension needs to be discarded.
-            out_index[i] = -1
+    for i in range(len(shape)):
+        big_dim = i + len(big_shape) - len(shape)
+        out_index[i] = 0 if shape[i] == 1 else big_index[big_dim]
 
 
 def shape_broadcast(shape1, shape2):
